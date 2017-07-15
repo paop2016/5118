@@ -11,6 +11,7 @@ from ip_manager import IpManager
 
 def open_db():
     conn = MySQLdb.connect(db='spider', port=3306,host='127.0.0.1', user="root",passwd="w3223214", charset="utf8")
+    # conn = MySQLdb.connect(db='dfetcher', port=3306,host='127.0.0.1', user="root",passwd="w3223214", charset="utf8")
     # conn = MySQLdb.connect(db='spider', port=3306, host='10.51.178.150', user="spider", passwd="b@4RkJFo!6yL", charset="utf8")
     return conn
 
@@ -42,12 +43,12 @@ def loop(q,l):
             break
         url,id=items
         try:
-            r = s.get(url, allow_redirects=False, timeout=3,proxies=ip)
+            r = s.get(url, allow_redirects=False, timeout=3,proxies=ip,headers=ip_manager.headers)
         except Exception as e:
             print str(e)
             with l:
                 out_count+=1
-                if out_count > 30:
+                if out_count > 200:
                     ip, s = ip_manager.get_ip()
                     out_count = 0
                     san_count = 0

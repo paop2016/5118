@@ -22,7 +22,7 @@ class IpManager():
         pass
     def get_ip(self,trytimes=5):
         print '尝试切换ip'
-        r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177142661u9xze3/74ac6f0850c811e79d9b7cd30abda612?returnType=2')
+        r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177142661u9xze3/720b4570fcdd11e6942200163e1a31c0?returnType=2')
         ipdata=json.loads(r.text)['RESULT']
         host = ipdata['wanIp']
         port = ipdata['proxyport']
