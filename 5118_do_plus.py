@@ -8,12 +8,22 @@ from Queue import Queue
 from atexit import register
 from lxml import etree
 from ip_manager import IpManager
-
+import redis
+pool=None
+def _open_redis():
+    global pool
+    if pool:
+        r = redis.Redis(connection_pool=pool)
+    else:
+        pool = redis.ConnectionPool(host='127.0.0.1', port=6379,db=0)
+        return _open_redis()
+    return r
 def open_db():
     conn = MySQLdb.connect(db='spider', port=3306,host='127.0.0.1', user="root",passwd="w3223214", charset="utf8")
     # conn = MySQLdb.connect(db='dfetcher', port=3306,host='127.0.0.1', user="root",passwd="w3223214", charset="utf8")
     # conn = MySQLdb.connect(db='spider', port=3306, host='10.51.178.150', user="spider", passwd="b@4RkJFo!6yL", charset="utf8")
     return conn
+
 
 
 num=0
@@ -23,7 +33,6 @@ san_count=0
 out_count=0
 ip_manager = IpManager()
 ip,s = ip_manager.get_ip()
-
 
 def loop(q,l):
     global num
@@ -37,21 +46,20 @@ def loop(q,l):
     conn.autocommit(True)
     cursor = conn.cursor()
     while True:
-        try:
-            items=q.get(timeout=3)
-        except Exception:
+        items=q.get()
+        if items==-1:
+            q.put(-1)
             break
         url,id=items
         try:
             r = s.get(url, allow_redirects=False, timeout=3,proxies=ip,headers=ip_manager.headers)
         except Exception as e:
-            # print str(e)
+            print str(e)
             with l:
                 out_count+=1
                 if out_count > 150:
-                    print 'timeout'
+                    time.sleep(20)
                     ip, s = ip_manager.get_ip()
-                    time.sleep(10)
                     out_count = 0
                     san_count = 0
                 q.put((url,id))
@@ -60,9 +68,7 @@ def loop(q,l):
             with l:
                 san_count+=1
                 if san_count > 150:
-                    print 302
                     ip, s = ip_manager.get_ip()
-                    time.sleep(3)
                     san_count = 0
                     out_count = 0
                 q.put((url,id))

@@ -22,29 +22,34 @@ class IpManager():
         pass
     def get_ip(self,trytimes=5):
         print '尝试切换ip'
-        r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177142661u9xze3/720b4570fcdd11e6942200163e1a31c0?returnType=2')
+        # r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177142661u9xze3/720b4570fcdd11e6942200163e1a31c0?returnType=2')
+        r=requests.get('http://www.xdaili.cn/ipagent//newExclusive/getIp?spiderId=862a24f629344ac6ae1bfac478b5066d&orderno=MF20177155533YC9IiT&returnType=2&count=1&machineArea=')
         ipdata=json.loads(r.text)['RESULT']
-        host = ipdata['wanIp']
-        port = ipdata['proxyport']
-        ip = 'http://' + host + ':' + str(port)
-        print ip
-        ip= {'http':ip}
         try:
-            r=requests.get('https://www.baidu.com/', proxies=ip,timeout=5)
-            r.encoding='utf-8'
-        except Exception as e:
-            print '访问百度超时'
+            host = ipdata['wanIp']
+        except:
+            pass
         else:
-            if '百度' in r.text:
-                print 'ip可用'
-                s=self.login(ip)
-                if s:
-                    if self.ip_test(ip,s):
-                        print '返回可用ip:%s'%str(ip)
-                        return ip,s
+            port = ipdata['proxyport']
+            ip = 'http://' + host + ':' + str(port)
+            print ip
+            ip= {'http':ip}
+            try:
+                r=requests.get('https://www.baidu.com/', proxies=ip,timeout=5)
+                r.encoding='utf-8'
+            except Exception as e:
+                print '访问百度超时'
+            else:
+                if '百度' in r.text:
+                    print 'ip可用'
+                    s=self.login(ip)
+                    if s:
+                        if self.ip_test(ip,s):
+                            print '返回可用ip:%s'%str(ip)
+                            return ip,s
         if trytimes>0:
             print '等待重新尝试切换ip'
-            time.sleep(20)
+            time.sleep(17)
             return self.get_ip(trytimes-1)
         print '未能返回ip'
         return None
@@ -98,7 +103,8 @@ class IpManager():
 # ip_manager=IpManager()
 # ip=ip_manager.get_ip()
 
-# r=requests.get('https://www.baidu.com/')
+# r=requests.get('http://www.xdaili.cn/ipagent//newExclusive/getIp?spiderId=862a24f629344ac6ae1bfac478b5066d&orderno=MF20177155533YC9IiT&returnType=2&count=1&machineArea=')
+# print r.text
 # r.encoding='utf-8'
 # print r.text
 # data = {
