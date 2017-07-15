@@ -19,15 +19,17 @@ num=0
 zore=0
 have=0
 san_count=0
+out_count=0
 ip_manager = IpManager()
 ip,s = ip_manager.get_ip()
 
 
 def loop(q,l):
     global num
-    global san_count
     global zore
     global have
+    global san_count
+    global out_count
     global ip
     global s
     conn=open_db()
@@ -42,7 +44,14 @@ def loop(q,l):
         try:
             r = s.get(url, allow_redirects=False, timeout=3,proxies=ip)
         except Exception as e:
-            q.put((url,id))
+            print str(e)
+            with l:
+                out_count+=1
+                if out_count > 30:
+                    ip, s = ip_manager.get_ip()
+                    out_count = 0
+                    san_count = 0
+                q.put((url,id))
             continue
         if r.status_code==302:
             with l:
@@ -50,9 +59,11 @@ def loop(q,l):
                 if san_count > 200:
                     ip, s = ip_manager.get_ip()
                     san_count = 0
+                    out_count = 0
                 q.put((url,id))
             continue
         if r.status_code in (400,404,503):
+            print r.status_code
             continue
         if r.status_code==403:
             print 403
@@ -86,7 +97,8 @@ def loop(q,l):
                 num+=1
                 if num%1000==0:
                     san_count=0
-                    print datetime.datetime.now().strftime('%H:%M:%S'),num,have,zore,san_count
+                    out_count=0
+                    print datetime.datetime.now().strftime('%H:%M:%S'),num,have,zore
         else:
             print r.status_code,url
     conn.close()
@@ -155,7 +167,7 @@ def start():
                 break
             url,id=line.split('\t')
             q.put((url,int(id)))
-    for _ in range(30):
+    for _ in range(50):
         Thread(target=loop,args=(q,lock)).start()
 start()
 

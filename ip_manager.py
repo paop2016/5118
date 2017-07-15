@@ -13,12 +13,10 @@ class IpManager():
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
         'Accept-Encoding': 'gzip, deflate',
         'Accept-Language': 'zh-CN,zh;q=0.8,en;q=0.6',
-        'Cache-Control': 'max-age=0',
-        'Connection': 'keep-alive',
-        'Host': 'account.5118.com',
-        'Referer': 'http://www.5118.com/',
+        'Host': 'www.5118.com',
         'Upgrade-Insecure-Requests': '1',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+        'Cookie':'__cfduid=d9bd5abc19805066fe2dde57a48348d7a1499851214; bdshare_firstime=1499852527149; ASP.NET_SessionId=zgoxz2obs1vhvdzssmeibldo; cf_clearance=376dfedaa849723011a7501bcf98a97c3f0f0326-1500059194-28800; Hm_lvt_e51f41cefdaee205c99f313a1a7143f2=1500008784; Hm_lpvt_e51f41cefdaee205c99f313a1a7143f2=1500059228; Hm_lvt_295557bac3c4981f18b013f806da26d0=1500009905,1500013560,1500026370,1500044121; Hm_lpvt_295557bac3c4981f18b013f806da26d0=1500059228; uid=LvhPJTScUGdZK04rve0iRe8FlgoGAJKYoroYnKHf9KI%3d; Hm_lvt_f3b3086e3d9a7a0a65c711de523251a6=1500008784; Hm_lpvt_f3b3086e3d9a7a0a65c711de523251a6=1500059497'
     }
     def __init__(self):
         pass
@@ -85,7 +83,7 @@ class IpManager():
 
     def ip_test(self,ip,s,url='http://www.5118.com/seo/related/%E9%98%BF%E9%87%8C',trytimes=2):
         try:
-            r=s.get(url,timeout=3,proxies=ip,allow_redirects=False)
+            r=s.get(url,timeout=3,proxies=ip,allow_redirects=False,headers=self.headers)
         except Exception as e:
             print str(e)
             pass
