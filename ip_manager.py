@@ -27,9 +27,9 @@ class IpManager():
         print '尝试切换ip'
         try:
             if 'MacBook'==computer:
-                r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177189193qV6tMo/03df27b41ddb11e79ff07cd30abda612?returnType=2')
+                r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177182243APZyNH/81068b56519511e79d9b7cd30abda612?returnType=2')
             elif 'wangchangtong' in computer:
-                r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177189193qV6tMo/03df27b41ddb11e79ff07cd30abda612?returnType=2')
+                r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177190599ryEAmZ/74a7d06c50c811e79d9b7cd30abda612?returnType=2')
 
             ipdata=json.loads(r.text)['RESULT']
             host = ipdata['wanIp']
