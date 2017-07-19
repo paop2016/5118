@@ -48,21 +48,22 @@ def switch_ip(q,url):
             print '获取ip失败，退出'
             requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s&message=获取ip失败，退出' % ('wangchangtong', platform.node()))
             q.put(-1)
-        time.sleep(6)
-        for i in xrange(15):
-            try:
-                s.get(url, allow_redirects=False, timeout=3, proxies=ip, headers=ip_manager.headers)
-            except:
-                time.sleep(3)
-            else:
-                break
-        if i<14:
-            print '切换成功，try:%s' % (i + 1)
             break
         else:
-            print '切换失败，重试'
-            time.sleep(5)
-
+            time.sleep(6)
+            for i in xrange(15):
+                try:
+                    s.get(url, allow_redirects=False, timeout=3, proxies=ip, headers=ip_manager.headers)
+                except:
+                    time.sleep(3)
+                else:
+                    break
+            if i<14:
+                print '切换成功，try:%s' % (i + 1)
+                break
+            else:
+                print '切换失败，重试'
+                time.sleep(5)
     san_count=out_count=0
 
 def loop(q,l):
@@ -83,7 +84,7 @@ def loop(q,l):
             print '退出:%s'%datetime.datetime.now().strftime('%H:%M:%S')
             break
         url,id,trytimes=items
-        if trytimes==100:
+        if trytimes>30:
             '重试次数太多，舍弃:%s'%url
             continue
         try:
@@ -147,8 +148,8 @@ def loop(q,l):
                     san_count=0
                     out_count=0
                     print '【%s %s %s %s】'%(datetime.datetime.now().strftime('%H:%M:%S'),num,have,zore)
-                if num%10000==0:
-                    requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s&message=已爬取:%s' % ('wangchangtong', platform.node(),num))
+                # if num%10000==0:
+                #     requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s&message=已爬取:%s' % ('wangchangtong', platform.node(),num))
         else:
             print r.status_code,url
     conn.close()
@@ -160,10 +161,14 @@ def save_co(cursor,id,url,amount):
         cursor.execute('insert into 5118_co VALUES (DEFAULT ,"%s","%s","%s")'%(id,co_name,amount))
     except:
         pass
+is_working=False
+init=True
+t1=0
 
 def parse(id, amonut, text,cursor):
     selector=etree.HTML(text)
     items=selector.xpath("//dl[not(@class)]")
+    global is_working
     for item in items:
         em=item.xpath(".//span[@class='hoverToHide']//em[@class='relate-hightlight']")
         if em:
@@ -207,23 +212,16 @@ def parse(id, amonut, text,cursor):
         else:
             continue
         try:
+            is_working=True
             cursor.execute('insert into 5118_data VALUES (DEFAULT ,"%s","%s","%s","%s","%s","%s","%s","%s")'%(id,word,bd_index,result,bid_co,pc,mobile,bid_level))
         except:
             pass
-init=True
+
 def product_loop(q,timer=0):
     time.sleep(timer)
     size=q.qsize()
     print '检查queue,size:%s。%s'%(size, datetime.datetime.now().strftime('%H:%M:%S'))
-    # if size==1:
-    #     items=q.get()
-    #     if items==-1:
-    #         print '生产者退出'
-    #         q.put(-1)
-    #         return
-    #     else:
-    #         q.put(items)
-
+    global t1,is_working
     if size==0:
         r=open_redis()
         global init
@@ -234,8 +232,16 @@ def product_loop(q,timer=0):
                     url,id=line.split('--0--')
                     num+=1
                     q.put((url,id,0))
-            print '从文件中读取到【%s】条种子'%num,
+            print '从文件中读取到【%s】条种子'%num
         else:
+            t2=time.time()
+            if t2-t1<50 and not is_working:
+                requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s退出信号发送&message=防无限取redis退出' % ('wangchangtong', platform.node()))
+                print '防无限取redis，退出'
+                q.put(-1)
+                return
+            else:
+                t1=t2
             with open('old_task.txt', 'w') as f:
                 print '从redis中获取500条种子'
                 for _ in xrange(500):
@@ -247,9 +253,10 @@ def product_loop(q,timer=0):
                     f.write(line+'\n')
                     url, id = line.split('--0--')
                     q.put((url, id,0))
-                print '获取完成！',
+                print '获取完成！！！'
             size = r.llen('5118')
             requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=500&message=%s从redis中取走500，剩余：%s' % ('wangchangtong',platform.node(),size))
+        is_working=False
         init=False
     open_redis()
     timer=(q.qsize()+24)/12
@@ -259,7 +266,7 @@ def product_loop(q,timer=0):
     if datetime.datetime.now().strftime('%H')=='2':
         print '两点了，退出'
         q.put(-1)
-        requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=退出信号发送&message=' % ('wangchangtong'))
+        requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s退出信号发送&message=两点' % ('wangchangtong',platform.node()))
         return
     # Timer(timer,product_loop,args=(q,)).start()
     t = Thread(target=product_loop,args=(q,timer))
@@ -272,10 +279,10 @@ def start():
     t=Thread(target=product_loop,args=(q,))
     t.setDaemon(True)
     t.start()
-    for _ in range(40):
+    for _ in range(50):
         Thread(target=loop,args=(q,lock)).start()
 start()
 
 @register
 def f():
-    requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=退出&message=退出啦' % ('wangchangtong'))
+    requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s退出&message=退出啦' % ('wangchangtong',platform.node()))
