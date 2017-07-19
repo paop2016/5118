@@ -126,4 +126,3 @@ class IpManager():
 # r=s.get('http://www.5118.com/seo/related/%E9%98%BF%E9%87%8C',timeout=3,allow_redirects=False)
 
 # print r.text
-print type(datetime.datetime.now().strftime('%H'))

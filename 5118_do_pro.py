@@ -9,7 +9,7 @@ from atexit import register
 from lxml import etree
 from ip_manager import IpManager
 
-mac=platform.node()=='MacBook'
+mac=platform.node()=='MacBook' or 'wangchangtong' in platform.node()
 def open_db():
     name="spider"
     if mac:
@@ -56,7 +56,9 @@ def loop(q,l):
             q.put(-1)
             print '退出:%s'%datetime.datetime.now().strftime('%H:%M:%S')
             break
-        url,id=items
+        url,id,trytimes=items
+        if trytimes==200:
+            continue
         try:
             r = s.get(url, allow_redirects=False, timeout=4,proxies=ip,headers=ip_manager.headers)
         except Exception as e:
@@ -64,7 +66,7 @@ def loop(q,l):
                 print str(e)
             # print str(e)
             with l:
-                q.put((url,id))
+                q.put((url,id,trytimes+1))
                 out_count+=1
                 if out_count > 300:
                     print '--timeout--'
@@ -87,7 +89,7 @@ def loop(q,l):
             continue
         if r.status_code==302:
             with l:
-                q.put((url,id))
+                q.put((url,id,trytimes+1))
                 san_count+=1
                 if san_count > 150:
                     print '--302--'
@@ -100,6 +102,10 @@ def loop(q,l):
             continue
         if r.status_code in (400,404,503):
             print r.status_code
+            continue
+        if r.status_code==500:
+            print 500
+            q.put((url, id, trytimes+1))
             continue
         if r.status_code==403:
             print 403
@@ -121,7 +127,7 @@ def loop(q,l):
                         for i in range(2,max+1):
                             index = url.find('pageIndex=')
                             url=url[:index+10]+str(i)
-                            q.put((url,id))
+                            q.put((url,id,0))
                         save_co(cursor,id,url,amount)
                     # 解析
                     parse(id,amount,r.text,cursor)
@@ -208,7 +214,7 @@ def product_loop(q):
                 for line in f.readlines():
                     url,id=line.split('--0--')
                     num+=1
-                    q.put((url,id))
+                    q.put((url,id,0))
             print '从文件中读取到【%s】条种子'%num,
         else:
             with open('old_task.txt', 'w') as f:
@@ -221,7 +227,7 @@ def product_loop(q):
                         break
                     f.write(line+'\n')
                     url, id = line.split('--0--')
-                    q.put((url, id))
+                    q.put((url, id,0))
                 print '获取完成！',
             size = r.llen('5118')
             requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=500&message=%s从redis中取走500，剩余：%s' % ('wangchangtong',platform.node(),size))
@@ -235,17 +241,16 @@ def product_loop(q):
         q.put(-1)
         requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=退出信号发送&message=' % ('wangchangtong'))
         return
-    Timer(timer,product_loop,args=(q,),daemon=True).start()
+    Timer(timer,product_loop,args=(q,)).start()
 
 def start():
     lock=Lock()
     q=Queue()
-    Thread(target=product_loop,args=(q,),daemon=True).start()
-    for _ in range(30):
+    Thread(target=product_loop,args=(q,)).start()
+    for _ in range(40):
         Thread(target=loop,args=(q,lock)).start()
 start()
-requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=退出&message=2点退出啦' % ('wangchangtong'))
 
 @register
 def f():
-    print have,zore,san_count
+    requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=退出&message=退出啦' % ('wangchangtong'))
