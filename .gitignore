@@ -1,6 +1,5 @@
 data_content_1620.txt
 demo/*
-!demo/create_table.sql
 .idea/*
 *.pyc
-run.sh
+old_task.txt

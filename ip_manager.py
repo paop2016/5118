@@ -1,12 +1,15 @@
 # -*- coding:utf-8 -*-
 import sys,re
+
+import datetime
+
 reload(sys)
 sys.setdefaultencoding( "utf-8" )
 
-import requests,json,time,random
+import requests,json,time,random,platform
 from threading import Timer
 from lxml import etree
-pool={}
+computer=platform.node()
 
 class IpManager():
     headers = {
@@ -22,17 +25,20 @@ class IpManager():
         pass
     def get_ip(self,trytimes=5):
         print '尝试切换ip'
-        # r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177142661u9xze3/720b4570fcdd11e6942200163e1a31c0?returnType=2')
-        r=requests.get('http://www.xdaili.cn/ipagent//newExclusive/getIp?spiderId=862a24f629344ac6ae1bfac478b5066d&orderno=MF20177155533YC9IiT&returnType=2&count=1&machineArea=')
-        ipdata=json.loads(r.text)['RESULT']
         try:
+            if 'MacBook'==computer:
+                r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177189193qV6tMo/03df27b41ddb11e79ff07cd30abda612?returnType=2')
+            elif 'wangchangtong' in computer:
+                r=requests.get('http://www.xdaili.cn/ipagent//privateProxy/getDynamicIP/DD20177189193qV6tMo/03df27b41ddb11e79ff07cd30abda612?returnType=2')
+
+            ipdata=json.loads(r.text)['RESULT']
             host = ipdata['wanIp']
         except:
             pass
         else:
             port = ipdata['proxyport']
             ip = 'http://' + host + ':' + str(port)
-            print ip
+            print ip,
             ip= {'http':ip}
             try:
                 r=requests.get('https://www.baidu.com/', proxies=ip,timeout=5)
@@ -99,7 +105,6 @@ class IpManager():
         if trytimes>0:
             return self.ip_test(ip,s,url='http://www.5118.com/seo/related/%E7%99%BE%E5%BA%A6',trytimes=trytimes-1)
         return False
-
 # ip_manager=IpManager()
 # ip=ip_manager.get_ip()
 
@@ -121,3 +126,4 @@ class IpManager():
 # r=s.get('http://www.5118.com/seo/related/%E9%98%BF%E9%87%8C',timeout=3,allow_redirects=False)
 
 # print r.text
+print type(datetime.datetime.now().strftime('%H'))
