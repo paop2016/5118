@@ -39,6 +39,32 @@ ip_manager = IpManager()
 ip,s = ip_manager.get_ip()
 
 
+def switch_ip(q,url):
+    global ip,s,san_count,out_count
+    while True:
+        try:
+            ip, s = ip_manager.get_ip()
+        except:
+            print '获取ip失败，退出'
+            requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s&message=获取ip失败，退出' % ('wangchangtong', platform.node()))
+            q.put(-1)
+        time.sleep(6)
+        for i in xrange(15):
+            try:
+                s.get(url, allow_redirects=False, timeout=3, proxies=ip, headers=ip_manager.headers)
+            except:
+                time.sleep(3)
+            else:
+                break
+        if i<14:
+            print '切换成功，try:%s' % (i + 1)
+            break
+        else:
+            print '切换失败，重试'
+            time.sleep(5)
+
+    san_count=out_count=0
+
 def loop(q,l):
     global num
     global zore
@@ -57,35 +83,20 @@ def loop(q,l):
             print '退出:%s'%datetime.datetime.now().strftime('%H:%M:%S')
             break
         url,id,trytimes=items
-        if trytimes==200:
+        if trytimes==100:
+            '重试次数太多，舍弃:%s'%url
             continue
         try:
             r = s.get(url, allow_redirects=False, timeout=4,proxies=ip,headers=ip_manager.headers)
         except Exception as e:
             if 'out' not in str(e):
                 print str(e)
-            # print str(e)
             with l:
                 q.put((url,id,trytimes+1))
                 out_count+=1
                 if out_count > 300:
                     print '--timeout--'
-                    try:
-                        ip, s = ip_manager.get_ip()
-                    except:
-                        q.put(-1)
-                    time.sleep(6)
-                    for i in xrange(15):
-                        try:
-                            s.get(url, allow_redirects=False, timeout=3, proxies=ip, headers=ip_manager.headers)
-                        except:
-                            time.sleep(3)
-                        else:
-                            break
-                    print '切换成功，try:%s'%(i+1)
-                    # time.sleep(60)
-                    out_count = 0
-                    san_count = 0
+                    switch_ip(q,url)
             continue
         if r.status_code==302:
             with l:
@@ -93,12 +104,7 @@ def loop(q,l):
                 san_count+=1
                 if san_count > 150:
                     print '--302--'
-                    try:
-                        ip, s = ip_manager.get_ip()
-                    except:
-                        q.put(-1)
-                    san_count = 0
-                    out_count = 0
+                    switch_ip(q, url)
             continue
         if r.status_code in (400,404,503):
             print r.status_code
@@ -174,12 +180,15 @@ def parse(id, amonut, text,cursor):
         word=word.replace('"','""')
         values_0 = item.xpath("./dd[@class='col3-5 center']")
         if len(values_0) == 3:
-            bd_index = values_0[1].xpath("./span/text()")[0]
-            if bd_index == '-':
-                bd_index = 0
-            result = values_0[2].xpath("./span/text()")[0]
-            if result == '-':
-                result = 0
+            try:
+                bd_index = values_0[1].xpath("./span/text()")[0]
+                if bd_index == '-':
+                    bd_index = 0
+                result = values_0[2].xpath("./span/text()")[0]
+                if result == '-':
+                    result = 0
+            except:
+                continue
         else:
             continue
         try:
@@ -202,9 +211,19 @@ def parse(id, amonut, text,cursor):
         except:
             pass
 init=True
-def product_loop(q):
+def product_loop(q,timer=0):
+    time.sleep(timer)
     size=q.qsize()
     print '检查queue,size:%s。%s'%(size, datetime.datetime.now().strftime('%H:%M:%S'))
+    # if size==1:
+    #     items=q.get()
+    #     if items==-1:
+    #         print '生产者退出'
+    #         q.put(-1)
+    #         return
+    #     else:
+    #         q.put(items)
+
     if size==0:
         r=open_redis()
         global init
@@ -238,15 +257,21 @@ def product_loop(q):
         timer=300
     print '%s秒后检查'%timer
     if datetime.datetime.now().strftime('%H')=='2':
+        print '两点了，退出'
         q.put(-1)
         requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=退出信号发送&message=' % ('wangchangtong'))
         return
-    Timer(timer,product_loop,args=(q,)).start()
+    # Timer(timer,product_loop,args=(q,)).start()
+    t = Thread(target=product_loop,args=(q,timer))
+    t.setDaemon(True)
+    t.start()
 
 def start():
     lock=Lock()
     q=Queue()
-    Thread(target=product_loop,args=(q,)).start()
+    t=Thread(target=product_loop,args=(q,))
+    t.setDaemon(True)
+    t.start()
     for _ in range(40):
         Thread(target=loop,args=(q,lock)).start()
 start()
