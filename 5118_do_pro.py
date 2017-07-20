@@ -14,7 +14,6 @@ def open_db():
     name="spider"
     if mac:
         db = MySQLdb.connect(db=name, port=3308,host='127.0.0.1', user="spider",passwd="b@4RkJFo!6yL", charset="utf8")
-        # db = MySQLdb.connect(db=name, port=3306,host='127.0.0.1', user="root",passwd="w3223214", charset="utf8")
     else:
         db = MySQLdb.connect(db=name, port=3306,host='10.51.178.150', user="spider",passwd="b@4RkJFo!6yL", charset="utf8")
     return db
@@ -30,14 +29,9 @@ def open_redis():
         return open_redis()
     return r
 
-num=0
-zore=0
-have=0
-san_count=0
-out_count=0
+num=zore=have=san_count=out_count=0
 ip_manager = IpManager()
 ip,s = ip_manager.get_ip()
-
 
 def switch_ip(q,url):
     global ip,s,san_count,out_count
@@ -67,13 +61,7 @@ def switch_ip(q,url):
     san_count=out_count=0
 
 def loop(q,l):
-    global num
-    global zore
-    global have
-    global san_count
-    global out_count
-    global ip
-    global s
+    global num,zore,have,san_count,out_count,ip,s,is_working
     conn=open_db()
     conn.autocommit(True)
     cursor = conn.cursor()
@@ -85,7 +73,7 @@ def loop(q,l):
             break
         url,id,trytimes=items
         if trytimes>30:
-            '重试次数太多，舍弃:%s'%url
+            print '重试次数太多，舍弃:%s'%url
             continue
         try:
             r = s.get(url, allow_redirects=False, timeout=4,proxies=ip,headers=ip_manager.headers)
@@ -116,9 +104,15 @@ def loop(q,l):
             continue
         if r.status_code==403:
             print 403
-            # q.put((url, id))
             continue
         if r.status_code==200:
+            m = re.search(r'/related/(.+)\?isPager=true', url)
+            co_name = m.group(1)
+            # 可能会有bug
+            if co_name in r.text:
+                # print 1
+                is_working=True
+
             a = re.search(r"DownParams.PayRowCount = '(\d+)'", r.text)
             if a:
                 amount=int(a.group(1))
@@ -135,9 +129,9 @@ def loop(q,l):
                             index = url.find('pageIndex=')
                             url=url[:index+10]+str(i)
                             q.put((url,id,0))
-                        save_co(cursor,id,url,amount)
+                        save_co(cursor,co_name,id,url,amount)
                     # 解析
-                    parse(id,amount,r.text,cursor)
+                    parse(id,r.text,cursor)
 
                 else:
                     with l:
@@ -148,24 +142,21 @@ def loop(q,l):
                     san_count=0
                     out_count=0
                     print '【%s %s %s %s】'%(datetime.datetime.now().strftime('%H:%M:%S'),num,have,zore)
-                # if num%10000==0:
-                #     requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s&message=已爬取:%s' % ('wangchangtong', platform.node(),num))
         else:
             print r.status_code,url
     conn.close()
-def save_co(cursor,id,url,amount):
-    m = re.search(r'/related/(.+)\?isPager=true', url)
-    co_name = m.group(1)
+
+def save_co(cursor,co_name,id,url,amount):
     co_name = co_name.replace('"', '""')
     try:
         cursor.execute('insert into 5118_co VALUES (DEFAULT ,"%s","%s","%s")'%(id,co_name,amount))
     except:
         pass
-is_working=False
+
+is_working=True
 init=True
 t1=0
-
-def parse(id, amonut, text,cursor):
+def parse(id,text,cursor):
     selector=etree.HTML(text)
     items=selector.xpath("//dl[not(@class)]")
     global is_working
@@ -178,10 +169,12 @@ def parse(id, amonut, text,cursor):
                 continue
         else:
             word=item.xpath(".//span[@class='hoverToHide']/a/text()")
+
             if word:
                 word=word[0]
             else:
                 continue
+
         word=word.replace('"','""')
         values_0 = item.xpath("./dd[@class='col3-5 center']")
         if len(values_0) == 3:
@@ -212,7 +205,6 @@ def parse(id, amonut, text,cursor):
         else:
             continue
         try:
-            is_working=True
             cursor.execute('insert into 5118_data VALUES (DEFAULT ,"%s","%s","%s","%s","%s","%s","%s","%s")'%(id,word,bd_index,result,bid_co,pc,mobile,bid_level))
         except:
             pass
@@ -234,14 +226,14 @@ def product_loop(q,timer=0):
                     q.put((url,id,0))
             print '从文件中读取到【%s】条种子'%num
         else:
-            t2=time.time()
-            if t2-t1<50 and not is_working:
+            # t2=time.time()
+            if not is_working:
                 requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=%s退出信号发送&message=防无限取redis退出' % ('wangchangtong', platform.node()))
                 print '防无限取redis，退出'
                 q.put(-1)
                 return
-            else:
-                t1=t2
+            # else:
+            #     t1=t2
             with open('old_task.txt', 'w') as f:
                 print '从redis中获取500条种子'
                 for _ in xrange(500):
@@ -256,8 +248,9 @@ def product_loop(q,timer=0):
                 print '获取完成！！！'
             size = r.llen('5118')
             requests.get('http://alarm.bosszhipin.com/useralarm/?user=%s&media=wechat&subject=500&message=%s从redis中取走500，剩余：%s' % ('wangchangtong',platform.node(),size))
-        is_working=False
+            is_working=False
         init=False
+
     open_redis()
     timer=(q.qsize()+24)/12
     if timer>300:
